@@ -1,0 +1,110 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    expose:
+      - 5432
+    ports:
+      - 5433:5432
+    environment:
+      POSTGRES_USER: dagster
+      POSTGRES_PASSWORD: dagster
+      POSTGRES_DB: dagster
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    networks:
+      - dagster
+
+  code:
+    container_name: code
+    build:
+      context: .
+      dockerfile: ./code.Dockerfile
+      target: code
+    image: code
+    restart: always
+    expose:
+      - 4000
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagster
+      DAGSTER_POSTGRES_DB: dagster
+      DAGSTER_CURRENT_IMAGE: code
+    command:
+      - dagster
+      - api
+      - grpc
+      - --host
+      - 0.0.0.0
+      - --port
+      - "4000"
+      - -m
+      - src
+      - --log-level
+      - info
+      - --max-workers
+      - "10"
+    networks:
+      - dagster
+
+  dagster-webserver:
+    container_name: dagster-webserver
+    build:
+      context: .
+      dockerfile: ./code.Dockerfile
+      target: dagster
+    image: dagster-webserver
+    command:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - workspace.yaml
+    expose:
+      - "3000"
+    ports:
+      - "3010:3000"
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagster
+      DAGSTER_POSTGRES_DB: dagster
+    volumes:
+      - ./dagster_home/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml
+      - ./dagster_home/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml
+    networks:
+      - dagster
+    depends_on:
+      - postgres
+      - code
+
+  dagster-daemon:
+    container_name: dagster-daemon
+    build:
+      context: .
+      dockerfile: ./code.Dockerfile
+      target: dagster
+    image: dagster-daemon
+    command:
+      - dagster-daemon
+      - run
+    environment:
+      DAGSTER_POSTGRES_USER: dagster
+      DAGSTER_POSTGRES_PASSWORD: dagster
+      DAGSTER_POSTGRES_DB: dagster
+    volumes:
+      - ./dagster_home/dagster.yaml:/opt/dagster/dagster_home/dagster.yaml
+      - ./dagster_home/workspace.yaml:/opt/dagster/dagster_home/workspace.yaml
+    networks:
+      - dagster
+    depends_on:
+      - postgres
+      - code
+
+networks:
+  dagster:
+    name: dagster
+    driver: bridge

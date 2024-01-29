@@ -1,0 +1,29 @@
+telemetry:
+  enabled: false
+
+schedules:
+  use_threads: true
+  num_workers: 4
+  num_submit_workers: 4
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+  config:
+    max_concurrent_runs: 40
+    dequeue_use_threads: true
+    dequeue_num_workers: 4
+
+run_launcher:
+  module: dagster
+  class: DefaultRunLauncher
+  config: {}
+
+storage:
+  postgres:
+    postgres_db:
+      username: dagster
+      password: dagster
+      db_name: dagster
+      hostname: postgres
+      port: 5432
